@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'antd/dist/reset.css';
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+.calendar-heatmap .color-empty {
+  fill: #ebedf0;
+}
+
+.calendar-heatmap .color-1 {
+  fill: #9be9a8;
+}
+
+.calendar-heatmap .color-2 {
+  fill: #40c463;
+}
+
+.calendar-heatmap .color-3 {
+  fill: #30a14e;
+}
+
+.calendar-heatmap .color-4 {
+  fill: #216e39;
+}
+
+.sidebar {
+  transition: width 0.2s ease;
+}
+
+.sidebar-collapsed {
+  width: 80px;
+}
+
+.sidebar-expanded {
+  width: 240px;
+}
