@@ -29,7 +29,8 @@ function checkProjectBudgetAndNotify(projectId: number | null | undefined) {
       notificationStmt.run(
         admin.id,
         '项目预算工时超支',
-        `项目【${project.name}】已用工时 ${used.used} 小时，超出预算 ${project.budget_hours} 小时`
+        `项目【${project.name}】已用工时 ${used.used} 小时，超出预算 ${project.budget_hours} 小时`,
+        project.id
       );
     }
   }
