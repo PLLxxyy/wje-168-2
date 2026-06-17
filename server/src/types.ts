@@ -18,6 +18,9 @@ export interface Project {
   description?: string;
   department?: string;
   status: string;
+  budget_hours: number;
+  used_hours?: number;
+  usage_ratio?: number;
   created_at: string;
 }
 

@@ -29,6 +29,7 @@ export function initDatabase() {
       description TEXT,
       department TEXT,
       status TEXT DEFAULT 'active',
+      budget_hours REAL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -75,6 +76,12 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_time_entries_status ON time_entries(status);
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
   `);
+
+  const columns = db.prepare("PRAGMA table_info(projects)").all() as { name: string }[];
+  const hasBudgetHours = columns.some((c) => c.name === 'budget_hours');
+  if (!hasBudgetHours) {
+    db.exec('ALTER TABLE projects ADD COLUMN budget_hours REAL DEFAULT 0');
+  }
 
   console.log('Database initialized successfully');
   return db;

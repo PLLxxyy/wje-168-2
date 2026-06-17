@@ -5,6 +5,36 @@ import { TimeEntryWithUser } from '../types';
 
 const router = Router();
 
+function checkProjectBudgetAndNotify(projectId: number | null | undefined) {
+  if (!projectId) return;
+
+  const project = db
+    .prepare('SELECT id, name, budget_hours FROM projects WHERE id = ?')
+    .get(projectId) as { id: number; name: string; budget_hours: number };
+  if (!project || project.budget_hours <= 0) return;
+
+  const used = db
+    .prepare(
+      "SELECT COALESCE(SUM(hours), 0) as used FROM time_entries WHERE project_id = ? AND status = 'approved'"
+    )
+    .get(projectId) as { used: number };
+
+  if (used.used > project.budget_hours) {
+    const admins = db.prepare("SELECT id FROM users WHERE role = 'admin'").all() as { id: number }[];
+    const notificationStmt = db.prepare(`
+      INSERT INTO notifications (user_id, type, title, content, related_id)
+      VALUES (?, 'budget_exceed', ?, ?, ?)
+    `);
+    for (const admin of admins) {
+      notificationStmt.run(
+        admin.id,
+        '项目预算工时超支',
+        `项目【${project.name}】已用工时 ${used.used} 小时，超出预算 ${project.budget_hours} 小时`
+      );
+    }
+  }
+}
+
 router.get('/pending', authenticateToken, requireRole('supervisor', 'admin'), (req, res) => {
   if (!req.user) return res.status(401).json({ error: '未认证' });
 
@@ -82,6 +112,7 @@ router.post('/:id/approve', authenticateToken, requireRole('supervisor', 'admin'
 
   try {
     transaction();
+    checkProjectBudgetAndNotify((entry as any).project_id);
     res.json({ success: true, status: 'approved' });
   } catch (error) {
     res.status(500).json({ error: '审批失败' });
@@ -134,9 +165,9 @@ router.post('/batch/approve', authenticateToken, requireRole('supervisor', 'admi
   const { userId, entryDate, comment } = req.body;
 
   const entries = db.prepare(`
-    SELECT id FROM time_entries 
+    SELECT id, project_id FROM time_entries 
     WHERE user_id = ? AND entry_date = ? AND status = 'pending'
-  `).all(userId, entryDate) as { id: number }[];
+  `).all(userId, entryDate) as { id: number; project_id: number | null }[];
 
   if (entries.length === 0) {
     return res.status(400).json({ error: '没有待审批的记录' });
@@ -152,10 +183,13 @@ router.post('/batch/approve', authenticateToken, requireRole('supervisor', 'admi
     VALUES (?, 'approval', ?, ?, ?)
   `);
 
+  const projectIds = new Set<number>();
+
   const transaction = db.transaction(() => {
     for (const entry of entries) {
       updateStmt.run('approved', entry.id);
       approvalStmt.run(entry.id, req.user!.userId, 'approved', comment || null);
+      if (entry.project_id) projectIds.add(entry.project_id);
     }
     notificationStmt.run(
       userId,
@@ -167,6 +201,9 @@ router.post('/batch/approve', authenticateToken, requireRole('supervisor', 'admi
 
   try {
     transaction();
+    for (const pid of projectIds) {
+      checkProjectBudgetAndNotify(pid);
+    }
     res.json({ success: true, count: entries.length });
   } catch (error) {
     res.status(500).json({ error: '批量审批失败' });

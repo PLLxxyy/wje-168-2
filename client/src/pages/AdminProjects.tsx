@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Modal, Form, Input, Select, Tag, Popconfirm, Space, message } from 'antd';
+import { Table, Button, Modal, Form, Input, Select, Tag, Popconfirm, Space, message, Progress, InputNumber } from 'antd';
 import { Plus, Pencil, Trash2, FolderKanban } from 'lucide-react';
 import { getProjects, createProject, updateProject, deleteProject } from '../api/projects';
 import { getDepartments as getUserDepartments } from '../api/users';
@@ -73,6 +73,7 @@ export default function AdminProjects() {
       description: project.description,
       department: project.department,
       status: project.status,
+      budget_hours: project.budget_hours,
     });
     setModalOpen(true);
   };
@@ -114,6 +115,36 @@ export default function AdminProjects() {
     { title: '项目名称', dataIndex: 'name', key: 'name' },
     { title: '描述', dataIndex: 'description', key: 'description', render: (v: string) => v || '-' },
     { title: '所属部门', dataIndex: 'department', key: 'department', render: (v: string) => v || '-' },
+    {
+      title: '预算工时',
+      dataIndex: 'budget_hours',
+      key: 'budget_hours',
+      width: 110,
+      render: (v: number) => `${v || 0} 小时`,
+    },
+    {
+      title: '已用比例',
+      key: 'usage',
+      width: 200,
+      render: (_: unknown, record: Project) => {
+        const used = record.used_hours || 0;
+        const budget = record.budget_hours || 0;
+        const ratio = record.usage_ratio || 0;
+        const isOver = budget > 0 && used > budget;
+        const color = ratio >= 100 ? 'red' : ratio >= 80 ? 'orange' : 'green';
+        return (
+          <div className="w-full">
+            <Progress
+              percent={Math.min(ratio, 100)}
+              status={isOver ? 'exception' : undefined}
+              strokeColor={color}
+              size="small"
+              format={() => `${used} / ${budget || 0} 小时 (${ratio.toFixed(1)}%)`}
+            />
+          </div>
+        );
+      },
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -187,7 +218,7 @@ export default function AdminProjects() {
         cancelText="取消"
         destroyOnClose
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" initialValues={{ budget_hours: 0, status: 'active' }}>
           <Form.Item name="code" label="项目编码" rules={[{ required: true, message: '请输入项目编码' }]}>
             <Input placeholder="例如：EP-001" disabled={!!editingProject} />
           </Form.Item>
@@ -199,6 +230,13 @@ export default function AdminProjects() {
           </Form.Item>
           <Form.Item name="department" label="所属部门">
             <Select allowClear options={departments.map((d) => ({ label: d, value: d }))} />
+          </Form.Item>
+          <Form.Item
+            name="budget_hours"
+            label="预算工时（小时）"
+            rules={[{ type: 'number', min: 0, message: '预算工时不能为负数' }]}
+          >
+            <InputNumber min={0} precision={1} className="w-full" placeholder="请输入预算工时" />
           </Form.Item>
           <Form.Item name="status" label="状态" rules={[{ required: true, message: '请选择状态' }]}>
             <Select
